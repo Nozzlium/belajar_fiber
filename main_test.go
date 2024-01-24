@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -79,4 +80,40 @@ func TestHeaderAndCookies(t *testing.T) {
 	bytes, err = io.ReadAll(response.Body)
 	assert.Nil(t, err)
 	assert.Equal(t, "wadidaw wadidiw", string(bytes))
+}
+
+func TestRouteParam(t *testing.T) {
+	app := fiber.New()
+	app.Get("/param/:id/weleh", func(c *fiber.Ctx) error {
+		id := c.Params("id", "lho?")
+		return c.SendString(fmt.Sprintf("Ini dia: %s", id))
+	})
+
+	response, err := app.Test(httptest.NewRequest("GET", "/param/chunli/weleh", nil))
+	assert.Nil(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+
+	bytes, err := io.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "Ini dia: chunli", string(bytes))
+}
+
+func TestForm(t *testing.T) {
+	app := fiber.New()
+	app.Post("/form", func(c *fiber.Ctx) error {
+		name := c.FormValue("name", "lah?")
+		game := c.FormValue("game", "lah?")
+		return c.SendString(fmt.Sprintf("Here's: %s, she appears in %s", name, game))
+	})
+
+	reader := strings.NewReader("name=Chun-Li&game=Street Fighter 6")
+	request := httptest.NewRequest("POST", "/form", reader)
+	request.Header.Add("content-type", "application/x-www-form-urlencoded")
+	response, err := app.Test(request)
+	assert.Nil(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+
+	bytes, err := io.ReadAll(response.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "Here's: Chun-Li, she appears in Street Fighter 6", string(bytes))
 }
