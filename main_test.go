@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -19,7 +20,12 @@ import (
 //go:embed source/chunli.txt
 var chunli []byte
 
-var app = fiber.New()
+var app = fiber.New(fiber.Config{
+	ErrorHandler: func(c *fiber.Ctx, err error) error {
+		c.Status(fiber.StatusInternalServerError)
+		return c.SendString(err.Error())
+	},
+})
 
 type LoginRequest struct {
 	Username string `json:"username"`
@@ -242,4 +248,15 @@ func TestRoutingGroup(t *testing.T) {
 	app.Test(httptest.NewRequest("POST", "/auth/login", nil))
 	app.Test(httptest.NewRequest("GET", "/post", nil))
 	app.Test(httptest.NewRequest("POST", "/post", nil))
+}
+
+func TestErrorHandler(t *testing.T) {
+	app.Get("/error", func(c *fiber.Ctx) error {
+		return errors.New("chunli")
+	})
+
+	resp, _ := app.Test(httptest.NewRequest("GET", "/error", nil))
+	bytes, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, "chunli", string(bytes))
 }
